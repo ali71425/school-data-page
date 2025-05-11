@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>استعلام بيانات المدرسة</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
-      background-color: #f9f9f9;
+      background-color: #f4f4f4;
       padding: 20px;
       text-align: center;
     }
 
     input, button, textarea {
-      padding: 10px;
+      padding: 12px;
       margin: 10px;
       font-size: 16px;
       border-radius: 6px;
@@ -57,6 +57,14 @@
       text-align: right;
     }
 
+    .alert-box {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 8px;
+    }
+
     .error {
       color: red;
     }
@@ -65,25 +73,25 @@
 <body>
 
   <div id="dashboard">
-    <p>📊 جاري تحميل الإحصائيات...</p>
+    <p>📊 جاري تحميل لوحة التحكم...</p>
   </div>
 
   <h2>استعلام بيانات المدرسة</h2>
-  <input type="text" id="schoolCode" placeholder="الرقم الإحصائي">
+  <input type="text" id="schoolCode" placeholder="أدخل الرقم الإحصائي">
   <br>
   <button onclick="fetchData()">عرض البيانات</button>
 
   <div id="result"></div>
 
   <div id="notesSection" style="display:none;">
-    <h3>اكتب الملاحظات أو التعديلات المطلوبة:</h3>
-    <textarea id="notes" rows="5" placeholder="مثلاً: تغيير رقم الجوال، تعديل اسم المدير/ة..."></textarea>
+    <h3>ملاحظات أو تعديل على البيانات:</h3>
+    <textarea id="notes" rows="4" placeholder="مثلاً: تعديل رقم الجوال، اسم المدير/ة..."></textarea>
     <br>
     <button class="secondary" onclick="submitCorrection()">إرسال الملاحظات</button>
   </div>
 
   <script>
-    const scriptURL = "https://script.google.com/macros/s/AKfycby9xr8ug-xxUYWoN_iuaZ-QBpNqrsURyv2Ct7ETKfBm6kWmy47y4hmpVD-16wGQ-hUeYw/exec";
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxDUeOxrik-ZCE-_7W8UG7dkmfCBvXMFn_GZwrHANc1GBRKjC-N5rWF7YkvpNFSqg5j2w/exec";
     let currentCode = "";
 
     async function fetchData() {
@@ -95,33 +103,55 @@
       document.getElementById("notes").value = "";
 
       if (!code) {
-        resultDiv.innerHTML = "<p class='error'>الرجاء إدخال الرقم الإحصائي.</p>";
+        resultDiv.innerHTML = "<p class='error'>يرجى إدخال الرقم الإحصائي.</p>";
         return;
       }
 
-      resultDiv.innerHTML = "جارٍ التحميل...";
+      resultDiv.innerHTML = "جارٍ تحميل البيانات...";
 
       try {
         const res = await fetch(`${scriptURL}?code=${code}`);
         const data = await res.json();
 
         if (data.success) {
+          let confirmationNotice = "";
+          const confirmed = data.status === "تم التأكيد" && data.confirmDate;
+          if (confirmed) {
+            const formatted = new Date(data.confirmDate).toLocaleString("ar-EG");
+            confirmationNotice = `
+              <div class="alert-box">
+                ✅ تم تأكيد البيانات مسبقًا بتاريخ: <strong>${formatted}</strong>
+              </div>
+            `;
+          }
+
+          let buttons = '';
+          if (!confirmed) {
+            buttons = `
+              <button onclick="confirmData()">✅ البيانات صحيحة</button>
+              <button class="secondary" onclick="showNotes()">❌ البيانات غير صحيحة</button>
+            `;
+          }
+
           resultDiv.innerHTML = `
+            ${confirmationNotice}
             <h3>بيانات المدرسة:</h3>
+            <p><strong>القطاع:</strong> ${data.sector}</p>
+            <p><strong>نوع المدرسة:</strong> ${data.type}</p>
             <p><strong>اسم المدرسة:</strong> ${data.schoolName}</p>
             <p><strong>اسم المدير/ة:</strong> ${data.director}</p>
             <p><strong>رقم الجوال:</strong> ${data.phone1}</p>
             <p><strong>اسم المنسق/ة:</strong> ${data.coordinator}</p>
             <p><strong>جوال المنسق/ة:</strong> ${data.phone2}</p>
-            <p><strong>حالة التأكيد:</strong> ${data.status || "لم يتم التأكيد بعد"}</p>
-            <button onclick="confirmData()">✅ البيانات صحيحة</button>
-            <button class="secondary" onclick="showNotes()">❌ البيانات غير صحيحة</button>
+            <p><strong>حالة التأكيد:</strong> ${data.status || "—"}</p>
+            ${buttons}
           `;
         } else {
-          resultDiv.innerHTML = "<p class='error'>لم يتم العثور على مدرسة بهذا الرقم الإحصائي.</p>";
+          resultDiv.innerHTML = "<p class='error'>لم يتم العثور على مدرسة بهذا الرقم.</p>";
         }
       } catch (error) {
-        resultDiv.innerHTML = "<p class='error'>حدث خطأ أثناء الاتصال.</p>";
+        resultDiv.innerHTML = "<p class='error'>حدث خطأ أثناء جلب البيانات.</p>";
+        console.error(error);
       }
     }
 
@@ -138,18 +168,23 @@
       });
       const result = await response.json();
       if (result.success) {
-        alert("✅ تم تأكيد صحة البيانات!");
+        const now = new Date();
+        const formattedDate = now.toLocaleString("ar-EG", {
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit"
+        });
+        alert(`✅ تم تأكيد بياناتك بتاريخ: ${formattedDate}`);
         fetchData();
         loadDashboard();
       } else {
-        alert("❌ تعذر تأكيد البيانات.");
+        alert("❌ فشل تأكيد البيانات.");
       }
     }
 
     async function submitCorrection() {
       const notes = document.getElementById("notes").value.trim();
       if (!notes) {
-        alert("يرجى كتابة الملاحظات قبل الإرسال.");
+        alert("يرجى كتابة الملاحظات.");
         return;
       }
 
@@ -161,7 +196,7 @@
 
       const result = await response.json();
       if (result.success) {
-        alert("✅ تم إرسال الملاحظات بنجاح!");
+        alert("✅ تم إرسال الملاحظات.");
         document.getElementById("notesSection").style.display = "none";
         fetchData();
         loadDashboard();
@@ -176,17 +211,16 @@
         const stats = await res.json();
 
         document.getElementById("dashboard").innerHTML = `
-          <h3>📊 لوحة المعلومات</h3>
-          <p>عدد المدارس الكلي: <strong>${stats.total}</strong></p>
-          <p>✅ تم التأكيد: <strong>${stats.confirmed}</strong></p>
-          <p>❌ لم يتم التأكيد: <strong>${stats.unconfirmed}</strong></p>
+          <h3>📊 لوحة التحكم</h3>
+          <p>عدد المدارس: <strong>${stats.total}</strong></p>
+          <p>✅ مؤكدة: <strong>${stats.confirmed}</strong></p>
+          <p>❌ غير مؤكدة: <strong>${stats.unconfirmed}</strong></p>
         `;
       } catch (error) {
-        document.getElementById("dashboard").innerHTML = "<p class='error'>تعذر تحميل لوحة المعلومات.</p>";
+        document.getElementById("dashboard").innerHTML = "<p class='error'>تعذر تحميل لوحة التحكم.</p>";
       }
     }
 
-    // تحميل الداشبورد عند فتح الصفحة
     loadDashboard();
   </script>
 
