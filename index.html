@@ -7,15 +7,15 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
-  font-family: 'Cairo', sans-serif;
-  background-color: #f0f4f8;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-height: 100vh;
-}
+      font-family: 'Cairo', sans-serif;
+      background-color: #f0f4f8;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
     header {
       background-color: #004e89;
       color: white;
@@ -23,35 +23,35 @@
       padding: 20px;
     }
     .container {
-  display: flex;
-  gap: 20px;
-  flex-direction: row;
-  flex-wrap: wrap;
-  justify-content: space-around;
-  align-items: flex-start;
-  max-width: 1200px;
-  width: 100%;
-  background: white;
-  border-radius: 10px;
-  padding: 20px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  margin-top: 20px;
-}
+      display: flex;
+      gap: 20px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      align-items: flex-start;
+      max-width: 1200px;
+      width: 100%;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      margin-top: 20px;
+    }
     h2 {
       text-align: center;
       margin-bottom: 20px;
     }
     canvas {
-  max-width: 100%;
-  margin-bottom: 20px;
-}
-  @media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-    align-items: center;
-  }
-}
-</style>
+      max-width: 100%;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+  </style>
 </head>
 <body>
   <header>
@@ -66,7 +66,6 @@
     </select>
     <p id="summary"></p>
     <div style="flex: 1; min-width: 300px;"><canvas id="statusChart"></canvas></div>
-    <br>
     <div style="flex: 1; min-width: 300px;"><canvas id="sectorChart"></canvas></div>
     <div style="flex: 1; min-width: 300px;"><canvas id="barStatusChart"></canvas></div>
   </div>
@@ -76,9 +75,13 @@
     fetch(scriptURL)
       .then(res => res.json())
       .then(data => {
+        if (!data || !data.total || !data.sectors) {
+          throw new Error("البيانات غير مكتملة أو غير متوقعة");
+        }
+
         document.getElementById("summary").textContent = `إجمالي المدارس: ${data.total}, المؤكدة: ${data.confirmed}, المعدلة: ${data.modified}, لم ترد: ${data.pending}`;
 
-        new Chart(document.getElementById("statusChart"), {
+        const statusChart = new Chart(document.getElementById("statusChart"), {
           type: 'doughnut',
           data: {
             labels: ['تم التأكيد', 'بيانات غير صحيحة', 'لم يتم الرد'],
@@ -98,15 +101,37 @@
           }
         });
 
+        const barStatusChart = new Chart(document.getElementById("barStatusChart"), {
+          type: 'bar',
+          data: {
+            labels: ['تم التأكيد', 'بيانات غير صحيحة', 'لم يتم الرد'],
+            datasets: [{
+              label: 'عدد الحالات',
+              data: [data.confirmed, data.modified, data.pending],
+              backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'مخطط أعمدة لحالة البيانات'
+              }
+            }
+          }
+        });
+
         const sectors = Object.keys(data.sectors);
+        const values = Object.values(data.sectors);
         const select = document.getElementById("sectorSelect");
+
         sectors.forEach(sector => {
           const option = document.createElement("option");
           option.value = sector;
           option.textContent = sector;
           select.appendChild(option);
         });
-        const values = Object.values(data.sectors);
 
         new Chart(document.getElementById("sectorChart"), {
           type: 'bar',
@@ -130,24 +155,35 @@
           }
         });
 
-        new Chart(document.getElementById("barStatusChart"), {
-          type: 'bar',
-          data: {
-            labels: ['تم التأكيد', 'بيانات غير صحيحة', 'لم يتم الرد'],
-            datasets: [{
-              label: 'عدد الحالات',
-              data: [data.confirmed, data.modified, data.pending],
-              backgroundColor: ['#28a745', '#ffc107', '#dc3545']
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              title: {
-                display: true,
-                text: 'مخطط أعمدة لحالة البيانات'
-              }
-            }
+        select.addEventListener("change", () => {
+          const selectedSector = select.value;
+
+          if (selectedSector === "all") {
+            document.getElementById("summary").textContent = `إجمالي المدارس: ${data.total}, المؤكدة: ${data.confirmed}, المعدلة: ${data.modified}, لم ترد: ${data.pending}`;
+            statusChart.data.datasets[0].data = [data.confirmed, data.modified, data.pending];
+            statusChart.options.plugins.title.text = 'حالة تحديث البيانات';
+            statusChart.update();
+
+            barStatusChart.data.datasets[0].data = [data.confirmed, data.modified, data.pending];
+            barStatusChart.options.plugins.title.text = 'مخطط أعمدة لحالة البيانات';
+            barStatusChart.update();
+          } else {
+            const raw = data.raw || [];
+            const filtered = raw.filter(row => row[1] === selectedSector);
+            let total = filtered.length;
+            let confirmed = filtered.filter(row => row[9] === "تم التأكيد").length;
+            let modified = filtered.filter(row => row[9] === "بيانات غير صحيحة").length;
+            let pending = total - confirmed - modified;
+
+            document.getElementById("summary").textContent = `القطاع: ${selectedSector} - إجمالي: ${total}, المؤكدة: ${confirmed}, المعدلة: ${modified}, لم ترد: ${pending}`;
+
+            statusChart.data.datasets[0].data = [confirmed, modified, pending];
+            statusChart.options.plugins.title.text = `حالة البيانات - ${selectedSector}`;
+            statusChart.update();
+
+            barStatusChart.data.datasets[0].data = [confirmed, modified, pending];
+            barStatusChart.options.plugins.title.text = `مخطط أعمدة - ${selectedSector}`;
+            barStatusChart.update();
           }
         });
       })
