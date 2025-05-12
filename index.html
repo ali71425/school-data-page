@@ -1,10 +1,312 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>لوحة الإحصائيات - الإدارة العامة للتعليم</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    function exportPDF() {
+      const chartsContainer = document.querySelector('.container');
+      html2canvas(chartsContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pageWidth * 0.95;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+        pdf.save('لوحة-الإحصائيات.pdf');
+      });
+    }
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function exportTableTo(tableId, name, type) {
+  const table = document.getElementById(tableId);
+  if (type === 'pdf') {
+    html2canvas(table).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const title = "الإدارة العامة للتعليم بمنطقة عسير - قسم الأمن والسلامة والمرافق\nقائمة: " + document.querySelector('#' + tableId).previousElementSibling.previousElementSibling.textContent;
+      pdf.setFontSize(14);
+      pdf.text(title, 10, 10);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pageWidth = pdf.internal.pageSize.getWidth() - 20;
+      const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 10, 20, pageWidth, pdfHeight);
+      pdf.save(name + '.pdf');
+    });
+  } else {
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cols = row.querySelectorAll('td, th');
+      csv += Array.from(cols).map(col => `"${col.textContent}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['#', 'اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+
+  document.getElementById("countConfirmed").textContent = "العدد: " + confirmed.length;
+  document.getElementById("countModified").textContent = "العدد: " + modified.length;
+  document.getElementById("countPending").textContent = "العدد: " + pending.length;
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = idx + 1;
+    tr.appendChild(tdIndex);
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+</script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels">
+    function exportPDF() {
+      const chartsContainer = document.querySelector('.container');
+      html2canvas(chartsContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pageWidth * 0.95;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+        pdf.save('لوحة-الإحصائيات.pdf');
+      });
+    }
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function exportTableTo(tableId, name, type) {
+  const table = document.getElementById(tableId);
+  if (type === 'pdf') {
+    html2canvas(table).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const title = "الإدارة العامة للتعليم بمنطقة عسير - قسم الأمن والسلامة والمرافق\nقائمة: " + document.querySelector('#' + tableId).previousElementSibling.previousElementSibling.textContent;
+      pdf.setFontSize(14);
+      pdf.text(title, 10, 10);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pageWidth = pdf.internal.pageSize.getWidth() - 20;
+      const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 10, 20, pageWidth, pdfHeight);
+      pdf.save(name + '.pdf');
+    });
+  } else {
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cols = row.querySelectorAll('td, th');
+      csv += Array.from(cols).map(col => `"${col.textContent}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['#', 'اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+
+  document.getElementById("countConfirmed").textContent = "العدد: " + confirmed.length;
+  document.getElementById("countModified").textContent = "العدد: " + modified.length;
+  document.getElementById("countPending").textContent = "العدد: " + pending.length;
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = idx + 1;
+    tr.appendChild(tdIndex);
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+</script>
   <style>
     body {
       font-family: 'Cairo', sans-serif;
@@ -16,12 +318,14 @@
       align-items: center;
       min-height: 100vh;
     }
+
     header {
-      background-color: #004e89;
+      background-color: #006c35;
       color: white;
       text-align: center;
-      padding: 20px;
+      padding: 10px 20px;
     }
+
     .container {
       display: flex;
       gap: 20px;
@@ -33,31 +337,427 @@
       width: 100%;
       background: white;
       border-radius: 10px;
-      padding: 20px;
+      padding: 10px 20px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.1);
       margin-top: 20px;
     }
+
+    .card {
+      background-color: #ffffff;
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+      margin-bottom: 20px;
+      width: 100%;
+      max-width: 400px;
+    }
+
     h2 {
       text-align: center;
       margin-bottom: 20px;
     }
+
     canvas {
       max-width: 100%;
-      margin-bottom: 20px;
     }
+
     @media (max-width: 768px) {
       .container {
         flex-direction: column;
         align-items: center;
       }
     }
-  </style>
+  
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 15px;
+    }
+    table thead {
+      background-color: #006c35;
+      color: white;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    table tr:hover {
+      background-color: #ddd;
+    }
+    .card h3 {
+      margin-bottom: 10px;
+      font-size: 18px;
+      color: #006c35;
+    }
+
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    table thead {
+      background-color: #006c35;
+      color: white;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 6px 10px;
+      text-align: center;
+    }
+    table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    table tr:hover {
+      background-color: #e0f2e9;
+    }
+    .card {
+      width: 100%;
+      margin-bottom: 30px;
+      padding: 20px;
+      border-radius: 10px;
+      background-color: #ffffff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    }
+    .card h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: #006c35;
+    }
+    .card .counter {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 10px;
+    }
+    .card button {
+      margin-left: 5px;
+      font-size: 13px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: none;
+      background-color: #006c35;
+      color: white;
+      cursor: pointer;
+    }
+
+</style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+    function exportPDF() {
+      const chartsContainer = document.querySelector('.container');
+      html2canvas(chartsContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pageWidth * 0.95;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+        pdf.save('لوحة-الإحصائيات.pdf');
+      });
+    }
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function exportTableTo(tableId, name, type) {
+  const table = document.getElementById(tableId);
+  if (type === 'pdf') {
+    html2canvas(table).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const title = "الإدارة العامة للتعليم بمنطقة عسير - قسم الأمن والسلامة والمرافق\nقائمة: " + document.querySelector('#' + tableId).previousElementSibling.previousElementSibling.textContent;
+      pdf.setFontSize(14);
+      pdf.text(title, 10, 10);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pageWidth = pdf.internal.pageSize.getWidth() - 20;
+      const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 10, 20, pageWidth, pdfHeight);
+      pdf.save(name + '.pdf');
+    });
+  } else {
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cols = row.querySelectorAll('td, th');
+      csv += Array.from(cols).map(col => `"${col.textContent}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['#', 'اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+
+  document.getElementById("countConfirmed").textContent = "العدد: " + confirmed.length;
+  document.getElementById("countModified").textContent = "العدد: " + modified.length;
+  document.getElementById("countPending").textContent = "العدد: " + pending.length;
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = idx + 1;
+    tr.appendChild(tdIndex);
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+</script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+    function exportPDF() {
+      const chartsContainer = document.querySelector('.container');
+      html2canvas(chartsContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pageWidth * 0.95;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+        pdf.save('لوحة-الإحصائيات.pdf');
+      });
+    }
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function exportTableTo(tableId, name, type) {
+  const table = document.getElementById(tableId);
+  if (type === 'pdf') {
+    html2canvas(table).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const title = "الإدارة العامة للتعليم بمنطقة عسير - قسم الأمن والسلامة والمرافق\nقائمة: " + document.querySelector('#' + tableId).previousElementSibling.previousElementSibling.textContent;
+      pdf.setFontSize(14);
+      pdf.text(title, 10, 10);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pageWidth = pdf.internal.pageSize.getWidth() - 20;
+      const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 10, 20, pageWidth, pdfHeight);
+      pdf.save(name + '.pdf');
+    });
+  } else {
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cols = row.querySelectorAll('td, th');
+      csv += Array.from(cols).map(col => `"${col.textContent}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['#', 'اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+
+  document.getElementById("countConfirmed").textContent = "العدد: " + confirmed.length;
+  document.getElementById("countModified").textContent = "العدد: " + modified.length;
+  document.getElementById("countPending").textContent = "العدد: " + pending.length;
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = idx + 1;
+    tr.appendChild(tdIndex);
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+</script>
+
 </head>
 <body>
-  <header>
+  <header style='border-radius: 0; width: 100%;'>
     <h1>الإدارة العامة للتعليم بمنطقة عسير</h1>
     <h3>قسم الأمن والسلامة والمرافق</h3>
   </header>
+
   <div class="container">
     <h2>📊 لوحة الإحصائيات</h2>
     <label for="sectorSelect">اختر قطاعًا لعرض البيانات:</label>
@@ -65,21 +765,64 @@
       <option value="all">كل القطاعات</option>
     </select>
     <p id="summary"></p>
-    <div style="flex: 1; min-width: 300px;"><canvas id="statusChart"></canvas></div>
-    <div style="flex: 1; min-width: 300px;"><canvas id="sectorChart"></canvas></div>
-    <div style="flex: 1; min-width: 300px;"><canvas id="barStatusChart"></canvas></div>
-  </div>
+    <button onclick="exportPDF()" style="margin: 10px 0; padding: 10px 20px; background-color: #006c35; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;">
+      📄 تصدير الإحصائيات PDF
+    </button>
+
+
+    <div class="card"><canvas id="statusChart"></canvas></div>
+    <div class="card"><canvas id="sectorChart"></canvas></div>
+    <div class="card"><canvas id="barStatusChart"></canvas>
+    <div id="tablesSection" style="display:none; width: 100%; margin-top: 30px;">
+      <h2>📋 قوائم المدارس حسب التصنيف</h2>
+      <div class="card">
+        <h3>✅ المدارس التي تم تأكيد بياناتها</h3><div class="counter" id="countConfirmed"></div>
+        <button onclick="exportTableTo('confirmedTable', 'confirmed', 'pdf')">📄 تصدير PDF</button>
+        <button onclick="exportTableTo('confirmedTable', 'confirmed', 'excel')">📥 تصدير Excel</button>
+        <table id="confirmedTable"></table>
+      </div>
+      <div class="card">
+        <h3>⚠️ المدارس التي عدلت بياناتها</h3><div class="counter" id="countModified"></div>
+        <button onclick="exportTableTo('modifiedTable', 'modified', 'pdf')">📄 تصدير PDF</button>
+        <button onclick="exportTableTo('modifiedTable', 'modified', 'excel')">📥 تصدير Excel</button>
+        <table id="modifiedTable"></table>
+      </div>
+      <div class="card">
+        <h3>❌ المدارس التي لم ترد</h3><div class="counter" id="countPending"></div>
+        <button onclick="exportTableTo('pendingTable', 'pending', 'pdf')">📄 تصدير PDF</button>
+        <button onclick="exportTableTo('pendingTable', 'pending', 'excel')">📥 تصدير Excel</button>
+        <table id="pendingTable"></table>
+      </div>
+    </div>
+</div>
+
+
   <script>
+    // setInterval(() => location.reload(), 60000);
     const scriptURL = "https://script.google.com/macros/s/AKfycbyEHr9r1KLWmf-vCShIlFU7N_q69ZFws0mTu_3AbY-l1IqJTOvwNQaL2m8IeagGpFgo/exec?action=stats";
 
     fetch(scriptURL)
       .then(res => res.json())
       .then(data => {
-        if (!data || !data.total || !data.sectors) {
-          throw new Error("البيانات غير مكتملة أو غير متوقعة");
-        }
+        if (!data || !data.total || !data.sectors) throw new Error("البيانات غير مكتملة أو غير متوقعة");
 
         document.getElementById("summary").textContent = `إجمالي المدارس: ${data.total}, المؤكدة: ${data.confirmed}, المعدلة: ${data.modified}, لم ترد: ${data.pending}`;
+
+        const commonOptions = {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' },
+            datalabels: {
+              color: '#333',
+              font: { weight: 'bold', size: 14 },
+              formatter: value => value
+            }
+          },
+          animation: {
+            duration: 1500,
+            easing: 'easeOutBounce'
+          }
+        };
 
         const statusChart = new Chart(document.getElementById("statusChart"), {
           type: 'doughnut',
@@ -87,18 +830,21 @@
             labels: ['تم التأكيد', 'بيانات غير صحيحة', 'لم يتم الرد'],
             datasets: [{
               data: [data.confirmed, data.modified, data.pending],
-              backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+              backgroundColor: ['#009966', '#ffca28', '#f44336']
             }]
           },
           options: {
-            responsive: true,
+            ...commonOptions,
             plugins: {
+              ...commonOptions.plugins,
               title: {
                 display: true,
-                text: 'حالة تحديث البيانات'
+                text: 'نسبة حالة تحديث البيانات',
+                font: { size: 18 }
               }
             }
-          }
+          },
+          plugins: [ChartDataLabels]
         });
 
         const barStatusChart = new Chart(document.getElementById("barStatusChart"), {
@@ -108,18 +854,29 @@
             datasets: [{
               label: 'عدد الحالات',
               data: [data.confirmed, data.modified, data.pending],
-              backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+              backgroundColor: ['#009966', '#ffca28', '#f44336']
             }]
           },
           options: {
-            responsive: true,
+            ...commonOptions,
             plugins: {
+              ...commonOptions.plugins,
               title: {
                 display: true,
-                text: 'مخطط أعمدة لحالة البيانات'
+                text: 'مخطط الأعمدة لحالة البيانات',
+                font: { size: 18 }
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  stepSize: 1
+                }
               }
             }
-          }
+          },
+          plugins: [ChartDataLabels]
         });
 
         const sectors = Object.keys(data.sectors);
@@ -138,34 +895,39 @@
           data: {
             labels: sectors,
             datasets: [{
-              label: 'عدد المدارس حسب القطاع',
+              label: 'عدد المدارس',
               data: values,
-              backgroundColor: '#007bff'
+              backgroundColor: '#006c35'
             }]
           },
           options: {
-            responsive: true,
+            ...commonOptions,
             indexAxis: 'y',
             plugins: {
+              ...commonOptions.plugins,
               title: {
                 display: true,
-                text: 'توزيع المدارس حسب القطاعات'
+                text: 'توزيع المدارس حسب القطاعات',
+                font: { size: 18 }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true
               }
             }
-          }
+          },
+          plugins: [ChartDataLabels]
         });
 
         select.addEventListener("change", () => {
           const selectedSector = select.value;
-
           if (selectedSector === "all") {
             document.getElementById("summary").textContent = `إجمالي المدارس: ${data.total}, المؤكدة: ${data.confirmed}, المعدلة: ${data.modified}, لم ترد: ${data.pending}`;
             statusChart.data.datasets[0].data = [data.confirmed, data.modified, data.pending];
-            statusChart.options.plugins.title.text = 'حالة تحديث البيانات';
             statusChart.update();
-
+            fillTables(filtered);
             barStatusChart.data.datasets[0].data = [data.confirmed, data.modified, data.pending];
-            barStatusChart.options.plugins.title.text = 'مخطط أعمدة لحالة البيانات';
             barStatusChart.update();
           } else {
             const raw = data.raw || [];
@@ -176,13 +938,10 @@
             let pending = total - confirmed - modified;
 
             document.getElementById("summary").textContent = `القطاع: ${selectedSector} - إجمالي: ${total}, المؤكدة: ${confirmed}, المعدلة: ${modified}, لم ترد: ${pending}`;
-
             statusChart.data.datasets[0].data = [confirmed, modified, pending];
-            statusChart.options.plugins.title.text = `حالة البيانات - ${selectedSector}`;
             statusChart.update();
-
+            fillTables(filtered);
             barStatusChart.data.datasets[0].data = [confirmed, modified, pending];
-            barStatusChart.options.plugins.title.text = `مخطط أعمدة - ${selectedSector}`;
             barStatusChart.update();
           }
         });
@@ -191,6 +950,156 @@
         document.getElementById("summary").textContent = 'تعذر تحميل البيانات. تأكد من الرابط أو الاتصال.';
         console.error('Fetch error:', err);
       });
-  </script>
+  
+    function exportPDF() {
+      const chartsContainer = document.querySelector('.container');
+      html2canvas(chartsContainer, { scale: 2 }).then(canvas => {
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const imgProps = pdf.getImageProperties(imgData);
+        const pdfWidth = pageWidth * 0.95;
+        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+        pdf.addImage(imgData, 'PNG', (pageWidth - pdfWidth) / 2, 10, pdfWidth, pdfHeight);
+        pdf.save('لوحة-الإحصائيات.pdf');
+      });
+    }
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+function exportTableTo(tableId, name, type) {
+  const table = document.getElementById(tableId);
+  if (type === 'pdf') {
+    html2canvas(table).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF();
+      const title = "الإدارة العامة للتعليم بمنطقة عسير - قسم الأمن والسلامة والمرافق\nقائمة: " + document.querySelector('#' + tableId).previousElementSibling.previousElementSibling.textContent;
+      pdf.setFontSize(14);
+      pdf.text(title, 10, 10);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pageWidth = pdf.internal.pageSize.getWidth() - 20;
+      const pdfHeight = (imgProps.height * pageWidth) / imgProps.width;
+      pdf.addImage(imgData, 'PNG', 10, 20, pageWidth, pdfHeight);
+      pdf.save(name + '.pdf');
+    });
+  } else {
+    let csv = '';
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+      const cols = row.querySelectorAll('td, th');
+      csv += Array.from(cols).map(col => `"${col.textContent}"`).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = name + '.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+function fillTables(data) {
+  document.getElementById('tablesSection').style.display = 'block';
+  const confirmed = [];
+  const modified = [];
+  const pending = [];
+
+  data.forEach(row => {
+    const status = row[9];
+    const info = [row[4], row[1], row[5], row[6]];
+    if (status === "تم التأكيد") confirmed.push(info);
+    else if (status === "بيانات غير صحيحة") modified.push(info);
+    else pending.push(info);
+  });
+
+  const headers = ['#', 'اسم المدرسة', 'القطاع', 'المدير/ة', 'رقم الجوال'];
+  createTable('confirmedTable', headers, confirmed);
+  createTable('modifiedTable', headers, modified);
+  createTable('pendingTable', headers, pending);
+
+  document.getElementById("countConfirmed").textContent = "العدد: " + confirmed.length;
+  document.getElementById("countModified").textContent = "العدد: " + modified.length;
+  document.getElementById("countPending").textContent = "العدد: " + pending.length;
+}
+
+function createTable(id, headers, rows) {
+  const table = document.getElementById(id);
+  table.innerHTML = '';
+  const thead = document.createElement('thead');
+  const tr = document.createElement('tr');
+  headers.forEach(h => {
+    const th = document.createElement('th');
+    th.textContent = h;
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  rows.forEach((row, idx) => {
+    const tr = document.createElement('tr');
+    const tdIndex = document.createElement('td');
+    tdIndex.textContent = idx + 1;
+    tr.appendChild(tdIndex);
+    row.forEach(cell => {
+      const td = document.createElement('td');
+      td.textContent = cell;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+}
+
+</script>
 </body>
 </html>
